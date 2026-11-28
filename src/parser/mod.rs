@@ -9141,7 +9141,10 @@ impl<'a> Parser<'a> {
                 Keyword::ARRAY => {
                     if dialect_of!(self is SnowflakeDialect) {
                         Ok(DataType::Array(ArrayElemTypeDef::None))
-                    } else if dialect_of!(self is ClickHouseDialect) {
+                    } else if dialect_of!(self is ClickHouseDialect)
+                        || (dialect_of!(self is HiveDialect)
+                            && self.peek_token().token == Token::LParen)
+                    {
                         Ok(self.parse_sub_type(|internal_type| {
                             DataType::Array(ArrayElemTypeDef::Parenthesis(internal_type))
                         })?)

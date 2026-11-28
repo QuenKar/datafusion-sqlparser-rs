@@ -643,3 +643,54 @@ fn parse_special_ident() {
     hive().verified_stmt("SELECT _iam_ FROM tab");
     hive().verified_stmt("SELECT `_iam_` FROM tab");
 }
+
+#[test]
+fn hive_array_type_parentheses() {
+    for (sql, canonical) in [
+        (
+            "SELECT CAST(payload AS ARRAY(JSON))",
+            "SELECT CAST(payload AS Array(JSON))",
+        ),
+        (
+            "SELECT CAST(payload AS ARRAY(VARCHAR(20)))",
+            "SELECT CAST(payload AS Array(VARCHAR(20)))",
+        ),
+        (
+            "SELECT CAST(payload AS ARRAY(DECIMAL(10, 2)))",
+            "SELECT CAST(payload AS Array(DECIMAL(10,2)))",
+        ),
+        (
+            "SELECT CAST(payload AS ARRAY(ARRAY(JSON)))",
+            "SELECT CAST(payload AS Array(Array(JSON)))",
+        ),
+        (
+            "SELECT CAST(payload AS ARRAY<JSON>)",
+            "SELECT CAST(payload AS ARRAY<JSON>)",
+        ),
+        (
+            "SELECT CAST(payload AS ARRAY(ARRAY<JSON>))",
+            "SELECT CAST(payload AS Array(ARRAY<JSON>))",
+        ),
+    ] {
+        let parsed = hive().one_statement_parses_to(sql, canonical);
+        assert_eq!(
+            sqlparser::parser::Parser::parse_sql(&HiveDialect {}, canonical).unwrap()[0],
+            parsed
+        );
+    }
+    for sql in [
+        "SELECT CAST(payload AS ARRAY())",
+        "SELECT CAST(payload AS ARRAY(JSON, INTEGER))",
+        "SELECT CAST(payload AS ARRAY(JSON)",
+    ] {
+        assert!(
+            sqlparser::parser::Parser::parse_sql(&HiveDialect {}, sql).is_err(),
+            "{sql}"
+        );
+    }
+    assert!(sqlparser::parser::Parser::parse_sql(
+        &GenericDialect {},
+        "SELECT CAST(payload AS ARRAY(JSON))"
+    )
+    .is_err());
+}
